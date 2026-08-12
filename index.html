@@ -370,7 +370,7 @@ var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 var IOS_DEFAULTS = {
   grab:  { scheme:'grab',  store:'https://apps.apple.com/sg/app/grab-taxi-ride-food-delivery/id647268330',
-           dl:'grab://open?screenType=BOOKING&dropOffAddress={dest}' },
+           dl:'grab://open?screenType=BOOKING&dropOffLatitude={lat}&dropOffLongitude={lng}&dropOffAddress={dest}' },
   gojek: { scheme:'gojek', store:'https://apps.apple.com/sg/app/gojek/id944875099' },
   tada:  { store:'https://apps.apple.com/sg/app/tada-ride-hailing/id1412329684' },
   ryde:  { store:'https://apps.apple.com/sg/app/ryde-ride-hailing-more/id979806982' },
@@ -389,6 +389,44 @@ function linked(a){
 }
 
 var state = { raining:false, expanded:false, quotes:{}, booked:null };
+
+/* ---------------- saved places (legacy entries are plain strings) ---------------- */
+function favName(f){ return typeof f === 'string' ? f : f.name; }
+function favByDest(dest){
+  var d = norm(dest);
+  for(var i=0;i<favs.length;i++) if(norm(favName(favs[i]))===d) return favs[i];
+  return null;
+}
+/* OneMap search — free SG government geocoder, no token needed */
+function geocode(q, cb){
+  fetch('https://www.onemap.gov.sg/api/common/elastic/search?searchVal=' +
+        encodeURIComponent(q) + '&returnGeom=Y&getAddrDetails=N&pageNum=1')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var r0 = d.results && d.results[0];
+      cb(r0 ? { lat:r0.LATITUDE, lng:r0.LONGITUDE, hit:r0.SEARCHVAL } : null);
+    })
+    .catch(function(){ cb(null); });
+}
+function addPlace(){
+  var name = prompt('Name this place as you would type it into a ride app');
+  if(!name || !name.trim()) return;
+  name = name.trim();
+  var addr = prompt('Address to pin it to (for deep links) — leave as-is if the name is already a real place', name);
+  var f = { name:name };
+  favs.push(f); put('ks.favs', favs); renderChips(); renderSetup();
+  if(addr && addr.trim()){
+    geocode(addr.trim(), function(g){
+      if(g){
+        f.addr = addr.trim(); f.lat = g.lat; f.lng = g.lng;
+        put('ks.favs', favs); renderSetup();
+        toast(name + ' pinned to ' + g.hit);
+      } else {
+        toast(name + ' saved without a pin — could not locate "' + addr.trim() + '"');
+      }
+    });
+  }
+}
 
 /* ---------------- time context ---------------- */
 function band(d){
@@ -632,7 +670,10 @@ function renderSetup(){
   var fl = document.getElementById('favList'); fl.innerHTML = '';
   favs.forEach(function(f,i){
     var row = document.createElement('div'); row.className = 'row';
-    row.innerHTML = '<div class="l trunc">' + f + '</div>';
+    row.innerHTML = '<div class="l"><div class="trunc">' + favName(f) + '</div>' +
+      '<div class="meta">' + (typeof f === 'object' && f.lat
+        ? 'PINNED · ' + (f.addr || favName(f)).toUpperCase()
+        : 'NO PIN — REMOVE AND RE-ADD WITH AN ADDRESS FOR DEEP LINKS') + '</div></div>';
     var b = document.createElement('button');
     b.className = 'ghost'; b.textContent = 'REMOVE'; b.style.padding = '6px 10px';
     b.onclick = function(){ favs.splice(i,1); put('ks.favs',favs); renderSetup(); renderChips(); };
@@ -647,20 +688,17 @@ function renderSetup(){
 function renderChips(){
   var host = document.getElementById('chips'); host.innerHTML = '';
   favs.forEach(function(f){
-    var c = document.createElement('button'); c.className = 'chip'; c.textContent = f;
+    var c = document.createElement('button'); c.className = 'chip'; c.textContent = favName(f);
     c.onclick = function(){
       var fr = document.getElementById('from'), to = document.getElementById('to');
-      if(!fr.value) fr.value = f; else to.value = f;
+      if(!fr.value) fr.value = favName(f); else to.value = favName(f);
       renderStack();
     };
     host.appendChild(c);
   });
   var add = document.createElement('button');
   add.className = 'chip add'; add.textContent = '+ PLACE';
-  add.onclick = function(){
-    var v = prompt('Name this place as you would type it into a ride app');
-    if(v && v.trim()){ favs.push(v.trim()); put('ks.favs',favs); renderChips(); renderSetup(); }
-  };
+  add.onclick = addPlace;
   host.appendChild(add);
 }
 
@@ -671,10 +709,18 @@ function launch(a){
   if(dest && navigator.clipboard) navigator.clipboard.writeText(dest).catch(function(){});
   if(IOS){
     var c = ios[a.id] || {};
-    /* deep link template beats plain scheme, but only when there is a destination */
-    var target = (c.dl && dest) ? c.dl.replace('{dest}', encodeURIComponent(dest))
-               : c.scheme ? c.scheme + '://'
-               : '';
+    /* deep link template beats plain scheme, but only when there is a destination;
+       templates with {lat}/{lng} additionally need the destination to be a pinned place */
+    var target = '';
+    if(c.dl && dest){
+      var f = favByDest(dest);
+      if(c.dl.indexOf('{lat}') === -1 || (f && f.lat)){
+        target = c.dl.replace('{dest}', encodeURIComponent(dest))
+                     .replace('{lat}', f && f.lat ? f.lat : '')
+                     .replace('{lng}', f && f.lng ? f.lng : '');
+      }
+    }
+    if(!target && c.scheme) target = c.scheme + '://';
     if(target){
       if(c.store){
         /* if the launch fails the page stays visible, so fall through to the store */
@@ -774,10 +820,7 @@ document.getElementById('impBtn').onclick = function(){
   };
   i.click();
 };
-document.getElementById('addFav').onclick = function(){
-  var v = prompt('Name this place as you would type it into a ride app');
-  if(v && v.trim()){ favs.push(v.trim()); put('ks.favs',favs); renderChips(); renderSetup(); }
-};
+document.getElementById('addFav').onclick = addPlace;
 document.getElementById('wipeBtn').onclick = function(){
   if(confirm('Delete all ' + rides.length + ' logged rides? This cannot be undone.')){
     rides = []; put('ks.rides', rides); renderStack(); renderHist(); toast('All rides deleted');

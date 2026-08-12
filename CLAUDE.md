@@ -23,7 +23,9 @@ path is the one that matters right now.
   decision, not an omission: an estimate can be wrong; an observation can't.
 - **No scraping of operator endpoints.** No calls to Grab/Gojek/TADA/Ryde/Zig APIs,
   no impersonating their clients. The launcher opens apps via Android `intent://` URLs
-  with a Play Store fallback; that's the whole integration surface.
+  with a Play Store fallback; that's the whole integration surface. The one permitted
+  network API is OneMap (SG government geocoder, no token) — used only when the user
+  pins a saved place, never per-ride.
 - **Works offline once cached; data never leaves the phone.** localStorage only
   (`ks.rides`, `ks.favs`, `ks.pkgs`, `ks.ios`), with an in-memory fallback when
   storage is blocked. Export/import is manual JSON.
@@ -65,13 +67,16 @@ Type: `--mono` = "Martian Mono" (labels, numbers, all-caps microcopy),
   the Setup tab extracts the package from a pasted Play Store share link.
 - Untested: whether `intent://` URLs fire correctly from an installed PWA, and whether
   any of the five apps accept route parameters in a deep link. Each iOS app row has a
-  "deep link template" field (`{dest}` = URL-encoded destination); when set and a
-  destination is typed, it is tried instead of the plain scheme. Grab is prefilled with
-  the historically-reported but UNDOCUMENTED
-  `grab://open?screenType=BOOKING&dropOffAddress={dest}` — unverified; if Grab opens on
-  the wrong screen, the user clears the field to revert to plain `grab://`. John does
-  not use the fare log (ranking known by intuition: TADA, Grab, CDG Zig) — launcher
-  friction is what matters.
+  "deep link template" field (`{dest}` = URL-encoded destination, `{lat}`/`{lng}` =
+  coordinates of a pinned saved place); when set and a destination is typed, it is
+  tried instead of the plain scheme. Templates containing `{lat}` only fire when the
+  destination matches a pinned place; otherwise plain scheme. Saved places can carry
+  coordinates (OneMap geocode at add-time; legacy string entries still work unpinned).
+  Field test 2026-08-12 on Grab iOS: `screenType=BOOKING` IS honoured (opens the
+  Transport tab) but text-only `dropOffAddress` is ignored — current prefilled template
+  adds `dropOffLatitude`/`dropOffLongitude`, awaiting device test. John does not use
+  the fare log (ranking known by intuition: TADA, Grab, CDG Zig) — launcher friction
+  is what matters.
 - `navigator.clipboard` requires a secure context. Testing over plain-http LAN
   (`python -m http.server`) silently breaks the copy-destination feature — test through
   GitHub Pages or a cloudflared https tunnel.
