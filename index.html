@@ -368,7 +368,19 @@ APPS.forEach(function(a){ if(pkgs[a.id]!==undefined) a.pkg = pkgs[a.id]; });
    is the source of truth once tested on the device. */
 var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-var ios = get('ks.ios', { grab:{scheme:'grab'}, gojek:{scheme:'gojek'} });
+var IOS_DEFAULTS = {
+  grab:  { scheme:'grab',  store:'https://apps.apple.com/sg/app/grab-taxi-ride-food-delivery/id647268330' },
+  gojek: { scheme:'gojek', store:'https://apps.apple.com/sg/app/gojek/id944875099' },
+  tada:  { store:'https://apps.apple.com/sg/app/tada-ride-hailing/id1412329684' },
+  ryde:  { store:'https://apps.apple.com/sg/app/ryde-ride-hailing-more/id979806982' },
+  zig:   { store:'https://apps.apple.com/sg/app/cdg-zig-taxis-cars/id954951647' }
+};
+var ios = get('ks.ios', {});
+/* fill only fields the user has never touched — a cleared '' field stays cleared */
+APPS.forEach(function(a){
+  var d = IOS_DEFAULTS[a.id] || {}, c = ios[a.id] || (ios[a.id] = {});
+  for(var k in d) if(c[k] === undefined) c[k] = d[k];
+});
 function linked(a){
   if(!IOS) return !!a.pkg;
   var c = ios[a.id] || {};

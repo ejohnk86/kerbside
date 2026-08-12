@@ -54,9 +54,12 @@ Type: `--mono` = "Martian Mono" (labels, numbers, all-caps microcopy),
 
 ## Current state / open questions (needs a real device)
 
-- iOS (current device): prefilled schemes `grab://` and `gojek://` are unverified
-  guesses; TADA, Ryde, CDG Zig are blank. Each needs one tap of OPEN on the iPhone to
-  confirm; the Setup tab stores a scheme and an optional App Store share link per app.
+- iOS (current device): `grab://` is **confirmed working** on the iPhone (tested
+  2026-08-12). `gojek://` is untested (app not installed on the device). TADA, Ryde
+  and CDG Zig have no known scheme; they launch via their App Store links, which are
+  prefilled and verified for all five apps (SG store ids: Grab 647268330,
+  Gojek 944875099, TADA 1412329684, Ryde 979806982, CDG Zig 954951647). Prefill
+  defaults merge into `ks.ios` only for fields the user has never touched.
 - Android (if the phone returns): only Grab (`com.grabtaxi.passenger`) is confirmed.
   Gojek is prefilled as `com.gojek.app` but unverified. TADA, Ryde, CDG Zig are blank —
   the Setup tab extracts the package from a pasted Play Store share link.
