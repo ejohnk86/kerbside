@@ -64,8 +64,14 @@ Type: `--mono` = "Martian Mono" (labels, numbers, all-caps microcopy),
   Gojek is prefilled as `com.gojek.app` but unverified. TADA, Ryde, CDG Zig are blank —
   the Setup tab extracts the package from a pasted Play Store share link.
 - Untested: whether `intent://` URLs fire correctly from an installed PWA, and whether
-  any of the five apps accept route parameters in a deep link. If a working deep link
-  scheme is found, wire it in as a per-app template.
+  any of the five apps accept route parameters in a deep link. Each iOS app row has a
+  "deep link template" field (`{dest}` = URL-encoded destination); when set and a
+  destination is typed, it is tried instead of the plain scheme. Grab is prefilled with
+  the historically-reported but UNDOCUMENTED
+  `grab://open?screenType=BOOKING&dropOffAddress={dest}` — unverified; if Grab opens on
+  the wrong screen, the user clears the field to revert to plain `grab://`. John does
+  not use the fare log (ranking known by intuition: TADA, Grab, CDG Zig) — launcher
+  friction is what matters.
 - `navigator.clipboard` requires a secure context. Testing over plain-http LAN
   (`python -m http.server`) silently breaks the copy-destination feature — test through
   GitHub Pages or a cloudflared https tunnel.
