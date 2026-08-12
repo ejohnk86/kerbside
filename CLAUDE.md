@@ -1,0 +1,64 @@
+# Kerbside
+
+A personal Android home-screen web app for Singapore ride-hailing. It does two things:
+launches the five ride apps (Grab, Gojek, TADA, Ryde, CDG Zig) with the destination
+copied to the clipboard, and logs the fares the user actually saw so it can learn which
+app to open first. Built for one user (John), hosted on GitHub Pages, opened in Chrome
+on Android and added to the home screen.
+
+## Hard constraints — do not violate
+
+- **Single self-contained file.** Everything lives in `index.html`. No build step, no
+  bundler, no npm, no frameworks, no external JS dependencies. (Google Fonts is the one
+  permitted external resource.)
+- **Never estimates fares.** The app only records and ranks fares the user actually saw.
+  No fare models, no distance-based formulas, no surge guessing. This is a design
+  decision, not an omission: an estimate can be wrong; an observation can't.
+- **No scraping of operator endpoints.** No calls to Grab/Gojek/TADA/Ryde/Zig APIs,
+  no impersonating their clients. The launcher opens apps via Android `intent://` URLs
+  with a Play Store fallback; that's the whole integration surface.
+- **Works offline once cached; data never leaves the phone.** localStorage only
+  (`ks.rides`, `ks.favs`, `ks.pkgs`), with an in-memory fallback when storage is
+  blocked. Export/import is manual JSON.
+- **Ranking honesty.** Only rides with ≥2 logged fares count as comparisons. Fallback
+  tiers: this route + time band → this route any time → all routes same day-type +
+  band → all rides; a tier is used only when it has ≥3 comparisons, and the UI always
+  states which sample ("basis") it used.
+
+## Design tokens — keep a restyle from drifting
+
+Colours (CSS custom properties in `:root`):
+
+| token | value | role |
+|---|---|---|
+| `--asphalt` | `#14171A` | page background |
+| `--kerb` | `#1E2328` | card background |
+| `--kerb-hi` | `#272D34` | raised/selected card |
+| `--meter` | `#FFB020` | accent, active tab, hero readout |
+| `--fare` | `#7FD1AE` | win/cheapest highlight |
+| `--paper` | `#E8E6DF` | receipt card background |
+| `--ink` | `#101316` | text on paper |
+| `--dim` | `#7A858F` | secondary text |
+| `--line` | `#2C333A` | borders |
+| `--warn` | `#E8825A` | unlinked/warning |
+
+Type: `--mono` = "Martian Mono" (labels, numbers, all-caps microcopy),
+`--sans` = "Instrument Sans" (body). Max content width 520px, mobile-first.
+
+## Current state / open questions (needs a real Android device)
+
+- Package names: only Grab (`com.grabtaxi.passenger`) is confirmed. Gojek is prefilled
+  as `com.gojek.app` but unverified. TADA, Ryde, CDG Zig are blank — the Setup tab
+  extracts the package from a pasted Play Store share link.
+- Untested: whether `intent://` URLs fire correctly from an installed PWA, and whether
+  any of the five apps accept route parameters in a deep link. If a working deep link
+  scheme is found, wire it in as a per-app template.
+- `navigator.clipboard` requires a secure context. Testing over plain-http LAN
+  (`python -m http.server`) silently breaks the copy-destination feature — test through
+  GitHub Pages or a cloudflared https tunnel.
+
+## Workflow
+
+Edit `index.html` → push to `main` → GitHub Pages serves it → pull-to-refresh in Chrome
+on the phone. No local dev server needed; when one is used anyway, remember the https
+caveat above.

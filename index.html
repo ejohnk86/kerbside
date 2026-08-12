@@ -1,0 +1,723 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14171A">
+<title>Kerbside</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --asphalt:#14171A;
+  --kerb:#1E2328;
+  --kerb-hi:#272D34;
+  --meter:#FFB020;
+  --fare:#7FD1AE;
+  --paper:#E8E6DF;
+  --ink:#101316;
+  --dim:#7A858F;
+  --line:#2C333A;
+  --warn:#E8825A;
+
+  --mono:"Martian Mono",ui-monospace,"Courier New",monospace;
+  --sans:"Instrument Sans",system-ui,-apple-system,sans-serif;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--asphalt);
+  color:#E6EAEE;
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.45;
+  padding:0 0 96px;
+  min-height:100vh;
+  overscroll-behavior-y:contain;
+}
+.wrap{max-width:520px;margin:0 auto;padding:0 16px}
+
+/* ---------- masthead ---------- */
+.mast{
+  display:flex;align-items:baseline;justify-content:space-between;
+  padding:20px 0 14px;border-bottom:1px solid var(--line);
+}
+.mast h1{
+  font-family:var(--mono);font-weight:700;font-size:15px;letter-spacing:.14em;
+  margin:0;text-transform:uppercase;
+}
+.mast h1 span{color:var(--meter)}
+.ctx{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em;text-align:right}
+
+/* ---------- meter readout: the hero ---------- */
+.meter{
+  margin:18px 0 6px;padding:20px 18px 18px;
+  background:linear-gradient(178deg,#191E23 0%,#12161A 100%);
+  border:1px solid var(--line);border-radius:4px;
+  position:relative;overflow:hidden;
+}
+.meter::after{ /* faint LCD scanlines */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px);
+}
+.meter .eyebrow{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:12px;
+}
+.meter .lead{
+  font-family:var(--mono);font-weight:700;
+  font-size:30px;line-height:1.05;letter-spacing:-.02em;
+  color:var(--meter);
+  text-shadow:0 0 22px rgba(255,176,32,.28);
+}
+.meter .lead.flat{color:#E6EAEE;text-shadow:none;font-size:21px}
+.meter .sub{margin-top:10px;font-size:13.5px;color:#9AA5AE;max-width:38ch}
+.meter .basis{
+  margin-top:12px;padding-top:11px;border-top:1px dashed var(--line);
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--dim);
+}
+
+/* ---------- sections ---------- */
+.sec{margin:26px 0 0}
+.sec > h2{
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--dim);margin:0 0 10px;font-weight:500;
+}
+
+/* ---------- route ---------- */
+.route{display:grid;gap:8px}
+.field{position:relative;display:flex;align-items:center;background:var(--kerb);border:1px solid var(--line);border-radius:3px}
+.field label{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--dim);
+  padding:0 10px 0 12px;flex:0 0 auto;text-transform:uppercase;
+}
+.field input{
+  flex:1;min-width:0;background:none;border:0;color:#E6EAEE;
+  font-family:var(--sans);font-size:15.5px;padding:13px 8px 13px 0;
+}
+.field input::placeholder{color:#57626B}
+.field input:focus{outline:none}
+.field:focus-within{border-color:var(--meter)}
+.copybtn{
+  flex:0 0 auto;background:none;border:0;border-left:1px solid var(--line);
+  color:var(--dim);font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+  padding:14px 12px;cursor:pointer;align-self:stretch;
+}
+.copybtn:active{color:var(--meter)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.chip{
+  background:var(--kerb);border:1px solid var(--line);color:#AEB8C0;
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  padding:7px 11px;border-radius:2px;cursor:pointer;
+}
+.chip:active{border-color:var(--meter);color:var(--meter)}
+.chip.add{color:var(--dim);border-style:dashed}
+
+/* ---------- conditions ---------- */
+.cond{display:flex;gap:8px;margin-top:10px}
+.toggle{
+  flex:1;background:var(--kerb);border:1px solid var(--line);border-radius:3px;
+  padding:11px 8px;text-align:center;cursor:pointer;
+  font-family:var(--mono);font-size:10px;letter-spacing:.07em;color:var(--dim);
+}
+.toggle[aria-pressed="true"]{background:var(--kerb-hi);border-color:var(--meter);color:var(--meter)}
+
+/* ---------- the stack: signature element ---------- */
+.stack{display:grid;gap:7px}
+.slab{
+  display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:12px;
+  background:var(--kerb);border:1px solid var(--line);border-radius:3px;
+  padding:13px 14px;cursor:pointer;text-align:left;width:100%;
+  color:inherit;font:inherit;position:relative;overflow:hidden;
+}
+.slab:focus-visible{outline:2px solid var(--meter);outline-offset:2px}
+.slab .rank{
+  font-family:var(--mono);font-size:14px;font-weight:700;color:var(--dim);
+}
+.slab.top{border-color:rgba(127,209,174,.42);background:var(--kerb-hi)}
+.slab.top .rank{color:var(--fare)}
+.slab .nm{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.slab .rec{font-family:var(--mono);font-size:9.5px;color:var(--dim);letter-spacing:.05em;margin-top:3px}
+.slab .go{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.08em}
+.slab.top .go{color:var(--fare)}
+.tape{ /* fare tape = win share, drawn along the bottom edge */
+  position:absolute;left:0;bottom:0;height:2px;background:var(--fare);opacity:.6;
+}
+.slab.unset{opacity:.55}
+.slab.unset .go{color:var(--warn)}
+.more{
+  background:none;border:0;color:var(--dim);font-family:var(--mono);
+  font-size:10px;letter-spacing:.1em;padding:11px 0 2px;cursor:pointer;width:100%;text-align:left;
+}
+
+/* ---------- receipt: log card ---------- */
+.receipt{
+  background:var(--paper);color:var(--ink);border-radius:3px;padding:16px 16px 18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.34);
+}
+.receipt h3{
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  margin:0 0 3px;font-weight:700;
+}
+.receipt .rmeta{font-family:var(--mono);font-size:9.5px;color:#6B7076;letter-spacing:.05em;margin-bottom:14px}
+.qrow{
+  display:grid;grid-template-columns:1fr 92px 46px;align-items:center;gap:9px;
+  padding:8px 0;border-top:1px dotted #BFBCB2;
+}
+.qrow .qn{font-size:14.5px;font-weight:500}
+.qrow input{
+  width:100%;background:#FBFAF6;border:1px solid #CCC8BD;border-radius:2px;
+  padding:9px 9px;font-family:var(--mono);font-size:14px;color:var(--ink);text-align:right;
+}
+.qrow input:focus{outline:none;border-color:var(--ink)}
+.pick{
+  border:1px solid #CCC8BD;background:#FBFAF6;border-radius:2px;padding:9px 0;
+  font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:#6B7076;cursor:pointer;
+}
+.pick[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.save{
+  width:100%;margin-top:16px;padding:15px;border:0;border-radius:3px;
+  background:var(--ink);color:var(--paper);
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+}
+.save:disabled{opacity:.35}
+.hint{font-size:12.5px;color:#6B7076;margin-top:11px;line-height:1.4}
+
+/* ---------- history / settings ---------- */
+.row{
+  display:flex;justify-content:space-between;gap:12px;align-items:baseline;
+  padding:11px 0;border-bottom:1px solid var(--line);font-size:14px;
+}
+.row .l{min-width:0}
+.row .rt{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap}
+.row .meta{font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-top:2px;letter-spacing:.05em}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.setrow{padding:13px 0;border-bottom:1px solid var(--line)}
+.setrow .sh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.setrow .nm2{font-size:15px;font-weight:600}
+.badge{font-family:var(--mono);font-size:9px;letter-spacing:.07em;padding:3px 7px;border-radius:2px}
+.badge.ok{color:var(--fare);border:1px solid rgba(127,209,174,.4)}
+.badge.no{color:var(--warn);border:1px solid rgba(232,130,90,.4)}
+.pkgin{
+  width:100%;margin-top:9px;background:var(--kerb);border:1px solid var(--line);
+  border-radius:2px;padding:11px;color:#E6EAEE;font-family:var(--mono);font-size:12px;
+}
+.pkgin:focus{outline:none;border-color:var(--meter)}
+.mini{font-size:12px;color:var(--dim);margin-top:7px;line-height:1.45}
+.ghost{
+  background:none;border:1px solid var(--line);color:#AEB8C0;border-radius:2px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:11px 13px;cursor:pointer;
+}
+.ghost:active{border-color:var(--meter);color:var(--meter)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.empty{
+  border:1px dashed var(--line);border-radius:3px;padding:22px 16px;
+  color:var(--dim);font-size:13.5px;text-align:center;line-height:1.5;
+}
+
+/* ---------- tab bar ---------- */
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:rgba(20,23,26,.94);backdrop-filter:blur(12px);
+  border-top:1px solid var(--line);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
+}
+.tabs button{
+  flex:1;background:none;border:0;padding:14px 4px 15px;cursor:pointer;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;
+}
+.tabs button[aria-selected="true"]{color:var(--meter);box-shadow:inset 0 2px 0 var(--meter)}
+.view{display:none}
+.view.on{display:block}
+
+.toast{
+  position:fixed;left:50%;bottom:84px;transform:translateX(-50%) translateY(8px);
+  background:var(--paper);color:var(--ink);padding:11px 18px;border-radius:3px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.05em;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:40;
+  max-width:88vw;text-align:center;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <div class="mast">
+    <h1>Kerb<span>side</span></h1>
+    <div class="ctx" id="ctx"></div>
+  </div>
+
+  <!-- ================= RIDE ================= -->
+  <div class="view on" id="v-ride">
+
+    <div class="meter">
+      <div class="eyebrow">Recommendation</div>
+      <div class="lead flat" id="mLead">No history yet</div>
+      <div class="sub" id="mSub">Log a few rides and this will tell you which apps to open, and when it isn't worth opening more than one.</div>
+      <div class="basis" id="mBasis"></div>
+    </div>
+
+    <div class="sec">
+      <h2>Route</h2>
+      <div class="route">
+        <div class="field">
+          <label for="from">From</label>
+          <input id="from" placeholder="Pickup" autocomplete="off">
+          <button class="copybtn" data-copy="from">COPY</button>
+        </div>
+        <div class="field">
+          <label for="to">To</label>
+          <input id="to" placeholder="Destination" autocomplete="off">
+          <button class="copybtn" data-copy="to">COPY</button>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="cond">
+        <button class="toggle" id="tRain" aria-pressed="false">RAINING</button>
+        <button class="toggle" id="tSwap" aria-pressed="false">SWAP ENDS</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2>Open in this order</h2>
+      <div class="stack" id="stack"></div>
+      <button class="more" id="moreBtn" hidden></button>
+    </div>
+
+    <div class="sec">
+      <div class="receipt">
+        <h3>Log this ride</h3>
+        <div class="rmeta" id="rMeta">Enter every fare you saw, then mark the one you booked.</div>
+        <div id="qrows"></div>
+        <button class="save" id="saveBtn" disabled>Save ride</button>
+        <div class="hint" id="saveHint">Needs at least two fares and a booked app.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= HISTORY ================= -->
+  <div class="view" id="v-hist">
+    <div class="sec">
+      <h2>Wins by app</h2>
+      <div id="winTable"></div>
+    </div>
+    <div class="sec">
+      <h2>Logged rides</h2>
+      <div id="histList"></div>
+    </div>
+    <div class="btnrow">
+      <button class="ghost" id="expBtn">EXPORT JSON</button>
+      <button class="ghost" id="impBtn">IMPORT JSON</button>
+    </div>
+  </div>
+
+  <!-- ================= SETUP ================= -->
+  <div class="view" id="v-set">
+    <div class="sec">
+      <h2>App links</h2>
+      <div class="mini" style="margin:0 0 14px">
+        To launch an app, this needs its Android package name. Open the app's Play Store page, tap Share, copy the link and paste it below. The package is pulled out automatically.
+      </div>
+      <div id="setList"></div>
+    </div>
+    <div class="sec">
+      <h2>Saved places</h2>
+      <div id="favList"></div>
+      <div class="btnrow">
+        <button class="ghost" id="addFav">ADD PLACE</button>
+      </div>
+    </div>
+    <div class="sec">
+      <h2>Data</h2>
+      <div class="mini" id="storeNote"></div>
+      <div class="btnrow">
+        <button class="ghost" id="wipeBtn">DELETE ALL RIDES</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="tabs">
+  <button aria-selected="true" data-v="ride">Ride</button>
+  <button aria-selected="false" data-v="hist">History</button>
+  <button aria-selected="false" data-v="set">Setup</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- storage (falls back to memory if blocked) ---------------- */
+var mem = {}, persistent = true;
+try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); } catch(e){ persistent = false; }
+function put(k,v){ var s = JSON.stringify(v); if(persistent){ try{ localStorage.setItem(k,s); return; }catch(e){ persistent=false; } } mem[k]=s; }
+function get(k,d){ var s = persistent ? localStorage.getItem(k) : mem[k]; if(s==null) return d; try{ return JSON.parse(s); }catch(e){ return d; } }
+
+/* ---------------- model ---------------- */
+var APPS = [
+  { id:'grab',  name:'Grab',    pkg:'com.grabtaxi.passenger', verified:true  },
+  { id:'gojek', name:'Gojek',   pkg:'com.gojek.app',          verified:false },
+  { id:'tada',  name:'TADA',    pkg:'',                       verified:false },
+  { id:'ryde',  name:'Ryde',    pkg:'',                       verified:false },
+  { id:'zig',   name:'CDG Zig', pkg:'',                       verified:false }
+];
+var pkgs  = get('ks.pkgs', {});
+var favs  = get('ks.favs', ['Home','Office','Changi T1','Raffles Place']);
+var rides = get('ks.rides', []);
+APPS.forEach(function(a){ if(pkgs[a.id]!==undefined) a.pkg = pkgs[a.id]; });
+
+var state = { raining:false, expanded:false, quotes:{}, booked:null };
+
+/* ---------------- time context ---------------- */
+function band(d){
+  var h = d.getHours(), we = (d.getDay()===0 || d.getDay()===6);
+  if(h < 6) return 'Late night';
+  if(we) return h < 18 ? 'Weekend day' : 'Weekend night';
+  if(h < 9)  return 'AM peak';
+  if(h < 12) return 'Morning';
+  if(h < 17) return 'Midday';
+  if(h < 20) return 'PM peak';
+  return 'Evening';
+}
+function dayType(d){ var w = d.getDay(); return (w===0||w===6) ? 'Weekend' : 'Weekday'; }
+function norm(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+function money(n){ return 'S$' + n.toFixed(2); }
+
+/* ---------------- ranking ---------------- */
+function scored(list){
+  var tally = {}; APPS.forEach(function(a){ tally[a.id] = { wins:0, seen:0, gaps:[] }; });
+  var counted = 0;
+  list.forEach(function(r){
+    var ids = Object.keys(r.quotes || {}).filter(function(k){ return typeof r.quotes[k] === 'number'; });
+    if(ids.length < 2) return;
+    counted++;
+    var best = Math.min.apply(null, ids.map(function(k){ return r.quotes[k]; }));
+    ids.forEach(function(k){
+      if(!tally[k]) return;
+      tally[k].seen++;
+      if(r.quotes[k] === best) tally[k].wins++;
+      tally[k].gaps.push(r.quotes[k] - best);
+    });
+  });
+  return { tally:tally, n:counted };
+}
+function median(a){
+  if(!a.length) return 0;
+  var s = a.slice().sort(function(x,y){ return x-y; }), m = Math.floor(s.length/2);
+  return s.length % 2 ? s[m] : (s[m-1]+s[m])/2;
+}
+function tiers(){
+  var f = norm(document.getElementById('from').value),
+      t = norm(document.getElementById('to').value),
+      now = new Date(), b = band(now), dt = dayType(now);
+  var onRoute = rides.filter(function(r){ return norm(r.from)===f && norm(r.to)===t; });
+  var out = [];
+  if(f && t){
+    out.push({ label:'this route, '+b, rows:onRoute.filter(function(r){ return r.band===b; }) });
+    out.push({ label:'this route, any time', rows:onRoute });
+  }
+  out.push({ label:'all routes, '+dt+' '+b, rows:rides.filter(function(r){ return r.band===b && r.dayType===dt; }) });
+  out.push({ label:'all logged rides', rows:rides });
+  for(var i=0;i<out.length;i++){
+    var s = scored(out[i].rows);
+    if(s.n >= 3) return { basis:out[i].label, n:s.n, tally:s.tally };
+  }
+  var last = scored(rides);
+  return { basis:'all logged rides', n:last.n, tally:last.tally };
+}
+
+/* ---------------- render ---------------- */
+function renderCtx(){
+  var d = new Date();
+  document.getElementById('ctx').textContent =
+    dayType(d).toUpperCase() + ' · ' + band(d).toUpperCase();
+}
+
+function renderStack(){
+  var r = tiers(), tal = r.tally;
+  var ranked = APPS.map(function(a){
+      var t = tal[a.id] || { wins:0, seen:0, gaps:[] };
+      return {
+        app:a, wins:t.wins, seen:t.seen,
+        rate: t.seen ? t.wins/t.seen : -1,
+        gap: median(t.gaps)
+      };
+    }).sort(function(x,y){
+      if(y.rate !== x.rate) return y.rate - x.rate;
+      return (x.app.pkg?0:1) - (y.app.pkg?0:1);
+    });
+
+  // hero
+  var lead = document.getElementById('mLead'),
+      sub  = document.getElementById('mSub'),
+      basis= document.getElementById('mBasis');
+  var top = ranked[0];
+  if(r.n < 3 || top.rate < 0){
+    lead.className = 'lead flat';
+    lead.textContent = r.n ? 'Only ' + r.n + ' comparison' + (r.n===1?'':'s') + ' so far' : 'No history yet';
+    sub.textContent = 'Open two or three, log what you see, and the ranking below starts meaning something at about ten rides.';
+    basis.textContent = '';
+  } else {
+    var second = ranked[1];
+    var worth = second && second.gap >= 1;
+    lead.className = 'lead';
+    lead.textContent = 'Open ' + top.app.name + ' first';
+    sub.textContent = worth
+      ? 'Then check ' + second.app.name + '. It has run about ' + money(second.gap) + ' above the cheapest, so the second look is usually worth it.'
+      : 'The rest have tracked within about ' + money(second ? second.gap : 0) + ' of the cheapest on this pattern. Comparing further probably is not worth the time.';
+    basis.textContent = 'BASED ON ' + r.n + ' COMPARISON' + (r.n===1?'':'S') + ' · ' + r.basis.toUpperCase();
+  }
+
+  // stack
+  var host = document.getElementById('stack'); host.innerHTML = '';
+  var shown = state.expanded ? ranked : ranked.slice(0,3);
+  shown.forEach(function(o,i){
+    var b = document.createElement('button');
+    b.className = 'slab' + (i===0 && o.rate>0 ? ' top' : '') + (o.app.pkg ? '' : ' unset');
+    var rec = o.seen
+      ? 'CHEAPEST ' + o.wins + '/' + o.seen + (o.gap>0.01 ? ' · +' + money(o.gap) + ' TYPICAL' : '')
+      : 'NO DATA YET';
+    b.innerHTML =
+      '<div class="rank">' + (i+1) + '</div>' +
+      '<div><div class="nm">' + o.app.name + '</div><div class="rec">' + rec + '</div></div>' +
+      '<div class="go">' + (o.app.pkg ? 'OPEN →' : 'SET UP') + '</div>';
+    if(o.seen && o.rate > 0){
+      var tape = document.createElement('div');
+      tape.className = 'tape';
+      tape.style.width = Math.round(o.rate*100) + '%';
+      b.appendChild(tape);
+    }
+    b.onclick = function(){ launch(o.app); };
+    host.appendChild(b);
+  });
+
+  var mb = document.getElementById('moreBtn');
+  if(ranked.length > 3){
+    mb.hidden = false;
+    mb.textContent = state.expanded ? '— SHOW FEWER' : '+ ALSO OPEN (' + (ranked.length-3) + ')';
+  } else mb.hidden = true;
+}
+
+function renderQuotes(){
+  var host = document.getElementById('qrows'); host.innerHTML = '';
+  APPS.forEach(function(a){
+    var row = document.createElement('div'); row.className = 'qrow';
+    var v = state.quotes[a.id];
+    row.innerHTML =
+      '<div class="qn">' + a.name + '</div>' +
+      '<input inputmode="decimal" placeholder="—" value="' + (v==null?'':v) + '" aria-label="Fare seen on ' + a.name + '">' +
+      '<button class="pick" aria-pressed="' + (state.booked===a.id) + '">BOOKED</button>';
+    var inp = row.querySelector('input');
+    inp.oninput = function(){
+      var n = parseFloat(inp.value);
+      if(isNaN(n)) delete state.quotes[a.id]; else state.quotes[a.id] = n;
+      refreshSave();
+    };
+    row.querySelector('.pick').onclick = function(e){
+      state.booked = (state.booked===a.id) ? null : a.id;
+      renderQuotes(); refreshSave();
+    };
+    host.appendChild(row);
+  });
+  var d = new Date();
+  document.getElementById('rMeta').textContent =
+    dayType(d) + ' ' + band(d).toLowerCase() + (state.raining ? ' · raining' : '');
+}
+
+function refreshSave(){
+  var n = Object.keys(state.quotes).length;
+  var ok = n >= 2 && state.booked;
+  document.getElementById('saveBtn').disabled = !ok;
+  document.getElementById('saveHint').textContent = ok
+    ? 'Saved rides never leave this phone.'
+    : 'Needs at least two fares and a booked app.';
+}
+
+function renderHist(){
+  var s = scored(rides), host = document.getElementById('winTable');
+  host.innerHTML = '';
+  if(!s.n){
+    host.innerHTML = '<div class="empty">Nothing logged yet. Every ride you record sharpens the ranking on the Ride tab.</div>';
+  } else {
+    APPS.forEach(function(a){
+      var t = s.tally[a.id];
+      if(!t.seen) return;
+      var row = document.createElement('div'); row.className = 'row';
+      row.innerHTML = '<div class="l"><div>' + a.name + '</div>' +
+        '<div class="meta">SEEN IN ' + t.seen + ' · TYPICALLY +' + money(median(t.gaps)) + '</div></div>' +
+        '<div class="rt">' + Math.round(t.wins/t.seen*100) + '% CHEAPEST</div>';
+      host.appendChild(row);
+    });
+  }
+
+  var hl = document.getElementById('histList'); hl.innerHTML = '';
+  if(!rides.length){ hl.innerHTML = '<div class="empty">No rides logged.</div>'; return; }
+  rides.slice().reverse().slice(0,60).forEach(function(r){
+    var nm = (APPS.filter(function(a){ return a.id===r.booked; })[0]||{}).name || r.booked;
+    var row = document.createElement('div'); row.className = 'row';
+    row.innerHTML =
+      '<div class="l"><div class="trunc">' + (r.from||'—') + ' → ' + (r.to||'—') + '</div>' +
+      '<div class="meta">' + new Date(r.ts).toLocaleDateString() + ' · ' + r.band.toUpperCase() +
+      (r.raining ? ' · RAIN' : '') + ' · ' + Object.keys(r.quotes).length + ' QUOTES</div></div>' +
+      '<div class="rt">' + nm + ' ' + money(r.quotes[r.booked]||0) + '</div>';
+    hl.appendChild(row);
+  });
+}
+
+function renderSetup(){
+  var host = document.getElementById('setList'); host.innerHTML = '';
+  APPS.forEach(function(a){
+    var d = document.createElement('div'); d.className = 'setrow';
+    d.innerHTML =
+      '<div class="sh"><div class="nm2">' + a.name + '</div>' +
+      '<div class="badge ' + (a.pkg ? 'ok' : 'no') + '">' + (a.pkg ? 'LINKED' : 'NOT LINKED') + '</div></div>' +
+      '<input class="pkgin" placeholder="Paste Play Store link or package name" value="' + (a.pkg||'') + '">' +
+      (a.verified ? '' : '<div class="mini">Not confirmed by me. Paste the Play Store link to be certain.</div>');
+    var inp = d.querySelector('input');
+    inp.onchange = function(){
+      var raw = inp.value.trim();
+      var m = raw.match(/[?&]id=([\w.]+)/);
+      var pkg = m ? m[1] : raw.replace(/\s/g,'');
+      a.pkg = pkg; pkgs[a.id] = pkg; put('ks.pkgs', pkgs);
+      inp.value = pkg; renderSetup(); renderStack();
+      toast(pkg ? a.name + ' linked' : a.name + ' unlinked');
+    };
+    host.appendChild(d);
+  });
+
+  var fl = document.getElementById('favList'); fl.innerHTML = '';
+  favs.forEach(function(f,i){
+    var row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = '<div class="l trunc">' + f + '</div>';
+    var b = document.createElement('button');
+    b.className = 'ghost'; b.textContent = 'REMOVE'; b.style.padding = '6px 10px';
+    b.onclick = function(){ favs.splice(i,1); put('ks.favs',favs); renderSetup(); renderChips(); };
+    row.appendChild(b); fl.appendChild(row);
+  });
+
+  document.getElementById('storeNote').textContent = persistent
+    ? 'Rides are stored in this browser only. Nothing is sent anywhere. Export regularly if the data matters to you.'
+    : 'This browser is blocking storage, so rides will vanish on reload. Save the file to your phone and open it there.';
+}
+
+function renderChips(){
+  var host = document.getElementById('chips'); host.innerHTML = '';
+  favs.forEach(function(f){
+    var c = document.createElement('button'); c.className = 'chip'; c.textContent = f;
+    c.onclick = function(){
+      var fr = document.getElementById('from'), to = document.getElementById('to');
+      if(!fr.value) fr.value = f; else to.value = f;
+      renderStack();
+    };
+    host.appendChild(c);
+  });
+  var add = document.createElement('button');
+  add.className = 'chip add'; add.textContent = '+ PLACE';
+  add.onclick = function(){
+    var v = prompt('Name this place as you would type it into a ride app');
+    if(v && v.trim()){ favs.push(v.trim()); put('ks.favs',favs); renderChips(); renderSetup(); }
+  };
+  host.appendChild(add);
+}
+
+/* ---------------- launching ---------------- */
+function launch(a){
+  if(!a.pkg){ show('set'); toast('Link ' + a.name + ' first'); return; }
+  var store = 'https://play.google.com/store/apps/details?id=' + a.pkg;
+  var url = 'intent://#Intent;package=' + a.pkg + ';S.browser_fallback_url=' + encodeURIComponent(store) + ';end';
+  var dest = document.getElementById('to').value.trim();
+  if(dest && navigator.clipboard) navigator.clipboard.writeText(dest).catch(function(){});
+  try { window.location.href = url; }
+  catch(e){ window.open(store,'_blank'); }
+}
+
+/* ---------------- wiring ---------------- */
+function toast(m){
+  var t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('on');
+  clearTimeout(t._x); t._x = setTimeout(function(){ t.classList.remove('on'); }, 1900);
+}
+function show(v){
+  ['ride','hist','set'].forEach(function(k){
+    document.getElementById('v-'+k).classList.toggle('on', k===v);
+  });
+  document.querySelectorAll('.tabs button').forEach(function(b){
+    b.setAttribute('aria-selected', b.dataset.v===v);
+  });
+  if(v==='hist') renderHist();
+  if(v==='set')  renderSetup();
+}
+document.querySelectorAll('.tabs button').forEach(function(b){
+  b.onclick = function(){ show(b.dataset.v); };
+});
+document.querySelectorAll('.copybtn').forEach(function(b){
+  b.onclick = function(){
+    var v = document.getElementById(b.dataset.copy).value.trim();
+    if(!v) return;
+    if(navigator.clipboard) navigator.clipboard.writeText(v).then(function(){ toast('Copied'); }).catch(function(){});
+  };
+});
+document.getElementById('from').oninput = renderStack;
+document.getElementById('to').oninput   = renderStack;
+document.getElementById('moreBtn').onclick = function(){ state.expanded = !state.expanded; renderStack(); };
+document.getElementById('tRain').onclick = function(){
+  state.raining = !state.raining;
+  this.setAttribute('aria-pressed', state.raining);
+  renderQuotes();
+};
+document.getElementById('tSwap').onclick = function(){
+  var f = document.getElementById('from'), t = document.getElementById('to');
+  var tmp = f.value; f.value = t.value; t.value = tmp; renderStack();
+};
+document.getElementById('saveBtn').onclick = function(){
+  var d = new Date();
+  rides.push({
+    ts: d.getTime(),
+    from: document.getElementById('from').value.trim(),
+    to: document.getElementById('to').value.trim(),
+    band: band(d), dayType: dayType(d), raining: state.raining,
+    quotes: Object.assign({}, state.quotes), booked: state.booked
+  });
+  put('ks.rides', rides);
+  state.quotes = {}; state.booked = null;
+  renderQuotes(); refreshSave(); renderStack();
+  toast('Ride saved · ' + rides.length + ' total');
+};
+document.getElementById('expBtn').onclick = function(){
+  var blob = new Blob([JSON.stringify({ rides:rides, favs:favs, pkgs:pkgs }, null, 2)], { type:'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'kerbside-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+};
+document.getElementById('impBtn').onclick = function(){
+  var i = document.createElement('input'); i.type = 'file'; i.accept = 'application/json';
+  i.onchange = function(){
+    var fr = new FileReader();
+    fr.onload = function(){
+      try {
+        var d = JSON.parse(fr.result);
+        if(d.rides) { rides = d.rides; put('ks.rides', rides); }
+        if(d.favs)  { favs  = d.favs;  put('ks.favs', favs); }
+        if(d.pkgs)  { pkgs  = d.pkgs;  put('ks.pkgs', pkgs);
+                      APPS.forEach(function(a){ if(pkgs[a.id]!==undefined) a.pkg = pkgs[a.id]; }); }
+        renderChips(); renderStack(); renderHist(); renderSetup();
+        toast('Imported ' + rides.length + ' rides');
+      } catch(e){ toast('That file could not be read'); }
+    };
+    fr.readAsText(i.files[0]);
+  };
+  i.click();
+};
+document.getElementById('addFav').onclick = function(){
+  var v = prompt('Name this place as you would type it into a ride app');
+  if(v && v.trim()){ favs.push(v.trim()); put('ks.favs',favs); renderChips(); renderSetup(); }
+};
+document.getElementById('wipeBtn').onclick = function(){
+  if(confirm('Delete all ' + rides.length + ' logged rides? This cannot be undone.')){
+    rides = []; put('ks.rides', rides); renderStack(); renderHist(); toast('All rides deleted');
+  }
+};
+
+renderCtx(); renderChips(); renderStack(); renderQuotes(); refreshSave();
+setInterval(function(){ renderCtx(); renderStack(); }, 60000);
+</script>
