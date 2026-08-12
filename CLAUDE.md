@@ -1,10 +1,13 @@
 # Kerbside
 
-A personal home-screen web app for Singapore ride-hailing. It does two things:
-launches the five ride apps (Grab, Gojek, TADA, Ryde, CDG Zig) with the destination
-copied to the clipboard, and logs the fares the user actually saw so it can learn which
-app to open first. Built for one user (John), hosted on GitHub Pages, added to the
-home screen from the mobile browser.
+A personal home-screen web app for Singapore ride-hailing: a pure launcher that opens
+the five ride apps (TADA, Grab, CDG Zig, Gojek, Ryde — the user's own preference
+order) with the destination copied to the clipboard. Built for one user (John), hosted
+on GitHub Pages, added to the home screen from the mobile browser.
+
+The original build also had a fare log and observed-fare ranking; John removed it
+(Aug 2026) because his ranking is settled intuition — do not re-add it. The app list
+order in `APPS` IS the ranking now; unlinked apps sink to the bottom.
 
 The launcher is platform-aware. On Android it fires `intent://` URLs keyed by package
 name; on iOS it opens a custom URL scheme with an App Store link as timed fallback
@@ -27,12 +30,9 @@ path is the one that matters right now.
   network API is OneMap (SG government geocoder, no token) — used only when the user
   pins a saved place, never per-ride.
 - **Works offline once cached; data never leaves the phone.** localStorage only
-  (`ks.rides`, `ks.favs`, `ks.pkgs`, `ks.ios`), with an in-memory fallback when
-  storage is blocked. Export/import is manual JSON.
-- **Ranking honesty.** Only rides with ≥2 logged fares count as comparisons. Fallback
-  tiers: this route + time band → this route any time → all routes same day-type +
-  band → all rides; a tier is used only when it has ≥3 comparisons, and the UI always
-  states which sample ("basis") it used.
+  (`ks.favs`, `ks.pkgs`, `ks.ios`; a legacy `ks.rides` from the removed fare log may
+  linger harmlessly), with an in-memory fallback when storage is blocked.
+  Export/import is manual JSON.
 
 ## Design tokens — keep a restyle from drifting
 
