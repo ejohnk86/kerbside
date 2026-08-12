@@ -369,14 +369,22 @@ APPS.forEach(function(a){ if(pkgs[a.id]!==undefined) a.pkg = pkgs[a.id]; });
 var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 var IOS_DEFAULTS = {
-  grab:  { scheme:'grab',  store:'https://apps.apple.com/sg/app/grab-taxi-ride-food-delivery/id647268330',
-           dl:'grab://open?screenType=BOOKING&dropOffLatitude={lat}&dropOffLongitude={lng}&dropOffAddress={dest}' },
+  grab:  { scheme:'grab',  store:'https://apps.apple.com/sg/app/grab-taxi-ride-food-delivery/id647268330' },
   gojek: { scheme:'gojek', store:'https://apps.apple.com/sg/app/gojek/id944875099' },
   tada:  { store:'https://apps.apple.com/sg/app/tada-ride-hailing/id1412329684' },
   ryde:  { store:'https://apps.apple.com/sg/app/ryde-ride-hailing-more/id979806982' },
   zig:   { store:'https://apps.apple.com/sg/app/cdg-zig-taxis-cars/id954951647' }
 };
 var ios = get('ks.ios', {});
+/* retire the experimental Grab booking deep links — device-tested Aug 2026, Grab
+   ignored the address then failed to open at all. Strip any auto-prefilled copy so
+   tapping reverts to the plain, reliable scheme. A template the user typed themselves
+   (anything unrecognised) is left alone. */
+var RETIRED_DL = {
+  'grab://open?screenType=BOOKING&dropOffAddress={dest}':1,
+  'grab://open?screenType=BOOKING&dropOffLatitude={lat}&dropOffLongitude={lng}&dropOffAddress={dest}':1
+};
+if(ios.grab && RETIRED_DL[ios.grab.dl]){ delete ios.grab.dl; put('ks.ios', ios); }
 /* fill only fields the user has never touched — a cleared '' field stays cleared */
 APPS.forEach(function(a){
   var d = IOS_DEFAULTS[a.id] || {}, c = ios[a.id] || (ios[a.id] = {});
@@ -723,11 +731,22 @@ function launch(a){
     if(!target && c.scheme) target = c.scheme + '://';
     if(target){
       if(c.store){
-        /* if the launch fails the page stays visible, so fall through to the store */
-        var t = setTimeout(function(){ window.location.href = c.store; }, 1600);
+        /* App Store fallback, only if the app truly isn't there. When the scheme opens
+           the app, iOS suspends this page's timers, so the callback fires much later
+           than scheduled (or not at all) — if it fires roughly on time and we're still
+           visible, the app didn't open. The elapsed-time guard stops a slow open or an
+           "Open in ...?" prompt from wrongly bouncing to the App Store. */
+        var DELAY = 2500, start = Date.now(), done = false;
+        var cancel = function(){ done = true; };
+        window.addEventListener('pagehide', cancel, { once:true });
         document.addEventListener('visibilitychange', function h(){
-          if(document.hidden){ clearTimeout(t); document.removeEventListener('visibilitychange', h); }
+          if(document.hidden){ cancel(); document.removeEventListener('visibilitychange', h); }
         });
+        setTimeout(function(){
+          if(done || document.hidden) return;
+          if(Date.now() - start > DELAY + 600) return; /* timer was suspended = app opened */
+          window.location.href = c.store;
+        }, DELAY);
       }
       window.location.href = target;
     } else {

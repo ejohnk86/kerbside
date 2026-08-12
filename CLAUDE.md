@@ -72,11 +72,19 @@ Type: `--mono` = "Martian Mono" (labels, numbers, all-caps microcopy),
   tried instead of the plain scheme. Templates containing `{lat}` only fire when the
   destination matches a pinned place; otherwise plain scheme. Saved places can carry
   coordinates (OneMap geocode at add-time; legacy string entries still work unpinned).
-  Field test 2026-08-12 on Grab iOS: `screenType=BOOKING` IS honoured (opens the
-  Transport tab) but text-only `dropOffAddress` is ignored — current prefilled template
-  adds `dropOffLatitude`/`dropOffLongitude`, awaiting device test. John does not use
-  the fare log (ranking known by intuition: TADA, Grab, CDG Zig) — launcher friction
-  is what matters.
+  **Deep-link prefill is a confirmed dead end for Grab** (two device tests, Aug 2026):
+  `screenType=BOOKING` opens the Transport tab but `dropOffAddress` text is ignored,
+  and the `dropOffLatitude/Longitude` variant fails to open Grab at all (bounced to the
+  App Store fallback). No prefilled Grab template ships now; a startup migration
+  (`RETIRED_DL`) strips the old auto-prefilled ones from stored `ks.ios`. The template
+  field remains for any future user-supplied link. Do not re-add a guessed Grab deep
+  link without a fresh working example from the device.
+- The iOS App Store fallback uses an elapsed-time guard (iOS suspends page timers when
+  an app opens, so a late-firing callback = app opened = no redirect) plus
+  `pagehide`/`visibilitychange` cancels. This replaced a naive 1.6s timer that wrongly
+  bounced slow app-opens to the App Store. Keep the guard if you touch `launch()`.
+- John does not use the fare log (ranking known by intuition: TADA, Grab, CDG Zig) —
+  launcher friction is what matters.
 - `navigator.clipboard` requires a secure context. Testing over plain-http LAN
   (`python -m http.server`) silently breaks the copy-destination feature — test through
   GitHub Pages or a cloudflared https tunnel.
