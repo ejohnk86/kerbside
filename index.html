@@ -316,9 +316,7 @@ body{
   <div class="view" id="v-set">
     <div class="sec">
       <h2>App links</h2>
-      <div class="mini" style="margin:0 0 14px">
-        To launch an app, this needs its Android package name. Open the app's Play Store page, tap Share, copy the link and paste it below. The package is pulled out automatically.
-      </div>
+      <div class="mini" style="margin:0 0 14px" id="setIntro"></div>
       <div id="setList"></div>
     </div>
     <div class="sec">
@@ -364,6 +362,18 @@ var pkgs  = get('ks.pkgs', {});
 var favs  = get('ks.favs', ['Home','Office','Changi T1','Raffles Place']);
 var rides = get('ks.rides', []);
 APPS.forEach(function(a){ if(pkgs[a.id]!==undefined) a.pkg = pkgs[a.id]; });
+
+/* iOS launches by custom URL scheme (with an App Store link as fallback) instead of
+   Android package intents. Prefilled schemes are unverified guesses; the Setup tab
+   is the source of truth once tested on the device. */
+var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+var ios = get('ks.ios', { grab:{scheme:'grab'}, gojek:{scheme:'gojek'} });
+function linked(a){
+  if(!IOS) return !!a.pkg;
+  var c = ios[a.id] || {};
+  return !!(c.scheme || c.store);
+}
 
 var state = { raining:false, expanded:false, quotes:{}, booked:null };
 
@@ -443,7 +453,7 @@ function renderStack(){
       };
     }).sort(function(x,y){
       if(y.rate !== x.rate) return y.rate - x.rate;
-      return (x.app.pkg?0:1) - (y.app.pkg?0:1);
+      return (linked(x.app)?0:1) - (linked(y.app)?0:1);
     });
 
   // hero
@@ -472,14 +482,14 @@ function renderStack(){
   var shown = state.expanded ? ranked : ranked.slice(0,3);
   shown.forEach(function(o,i){
     var b = document.createElement('button');
-    b.className = 'slab' + (i===0 && o.rate>0 ? ' top' : '') + (o.app.pkg ? '' : ' unset');
+    b.className = 'slab' + (i===0 && o.rate>0 ? ' top' : '') + (linked(o.app) ? '' : ' unset');
     var rec = o.seen
       ? 'CHEAPEST ' + o.wins + '/' + o.seen + (o.gap>0.01 ? ' · +' + money(o.gap) + ' TYPICAL' : '')
       : 'NO DATA YET';
     b.innerHTML =
       '<div class="rank">' + (i+1) + '</div>' +
       '<div><div class="nm">' + o.app.name + '</div><div class="rec">' + rec + '</div></div>' +
-      '<div class="go">' + (o.app.pkg ? 'OPEN →' : 'SET UP') + '</div>';
+      '<div class="go">' + (linked(o.app) ? 'OPEN →' : 'SET UP') + '</div>';
     if(o.seen && o.rate > 0){
       var tape = document.createElement('div');
       tape.className = 'tape';
@@ -564,23 +574,44 @@ function renderHist(){
 }
 
 function renderSetup(){
+  document.getElementById('setIntro').textContent = IOS
+    ? 'On iPhone, apps launch by URL scheme (e.g. "grab"). Schemes are not officially published, so test each by tapping OPEN once. Add the app’s App Store share link as a fallback: App Store page → share → Copy Link.'
+    : 'To launch an app, this needs its Android package name. Open the app’s Play Store page, tap Share, copy the link and paste it below. The package is pulled out automatically.';
   var host = document.getElementById('setList'); host.innerHTML = '';
   APPS.forEach(function(a){
     var d = document.createElement('div'); d.className = 'setrow';
-    d.innerHTML =
+    var head =
       '<div class="sh"><div class="nm2">' + a.name + '</div>' +
-      '<div class="badge ' + (a.pkg ? 'ok' : 'no') + '">' + (a.pkg ? 'LINKED' : 'NOT LINKED') + '</div></div>' +
-      '<input class="pkgin" placeholder="Paste Play Store link or package name" value="' + (a.pkg||'') + '">' +
-      (a.verified ? '' : '<div class="mini">Not confirmed by me. Paste the Play Store link to be certain.</div>');
-    var inp = d.querySelector('input');
-    inp.onchange = function(){
-      var raw = inp.value.trim();
-      var m = raw.match(/[?&]id=([\w.]+)/);
-      var pkg = m ? m[1] : raw.replace(/\s/g,'');
-      a.pkg = pkg; pkgs[a.id] = pkg; put('ks.pkgs', pkgs);
-      inp.value = pkg; renderSetup(); renderStack();
-      toast(pkg ? a.name + ' linked' : a.name + ' unlinked');
-    };
+      '<div class="badge ' + (linked(a) ? 'ok' : 'no') + '">' + (linked(a) ? 'LINKED' : 'NOT LINKED') + '</div></div>';
+    if(IOS){
+      var c = ios[a.id] || (ios[a.id] = {});
+      d.innerHTML = head +
+        '<input class="pkgin" data-k="scheme" placeholder="URL scheme, e.g. grab" value="' + (c.scheme||'') + '">' +
+        '<input class="pkgin" data-k="store" placeholder="App Store link (fallback, optional)" value="' + (c.store||'') + '">' +
+        '<div class="mini">Scheme untested until you tap OPEN and the app appears. If it does nothing, clear the scheme and rely on the App Store link.</div>';
+      d.querySelectorAll('input').forEach(function(inp){
+        inp.onchange = function(){
+          var v = inp.value.trim();
+          if(inp.dataset.k === 'scheme') v = v.replace(/:\/\/.*$/,'').replace(/\s/g,'');
+          c[inp.dataset.k] = v; put('ks.ios', ios);
+          inp.value = v; renderSetup(); renderStack();
+          toast(linked(a) ? a.name + ' linked' : a.name + ' unlinked');
+        };
+      });
+    } else {
+      d.innerHTML = head +
+        '<input class="pkgin" placeholder="Paste Play Store link or package name" value="' + (a.pkg||'') + '">' +
+        (a.verified ? '' : '<div class="mini">Not confirmed by me. Paste the Play Store link to be certain.</div>');
+      var inp = d.querySelector('input');
+      inp.onchange = function(){
+        var raw = inp.value.trim();
+        var m = raw.match(/[?&]id=([\w.]+)/);
+        var pkg = m ? m[1] : raw.replace(/\s/g,'');
+        a.pkg = pkg; pkgs[a.id] = pkg; put('ks.pkgs', pkgs);
+        inp.value = pkg; renderSetup(); renderStack();
+        toast(pkg ? a.name + ' linked' : a.name + ' unlinked');
+      };
+    }
     host.appendChild(d);
   });
 
@@ -621,11 +652,27 @@ function renderChips(){
 
 /* ---------------- launching ---------------- */
 function launch(a){
-  if(!a.pkg){ show('set'); toast('Link ' + a.name + ' first'); return; }
-  var store = 'https://play.google.com/store/apps/details?id=' + a.pkg;
-  var url = 'intent://#Intent;package=' + a.pkg + ';S.browser_fallback_url=' + encodeURIComponent(store) + ';end';
+  if(!linked(a)){ show('set'); toast('Link ' + a.name + ' first'); return; }
   var dest = document.getElementById('to').value.trim();
   if(dest && navigator.clipboard) navigator.clipboard.writeText(dest).catch(function(){});
+  if(IOS){
+    var c = ios[a.id] || {};
+    if(c.scheme){
+      if(c.store){
+        /* if the scheme fails the page stays visible, so fall through to the store */
+        var t = setTimeout(function(){ window.location.href = c.store; }, 1600);
+        document.addEventListener('visibilitychange', function h(){
+          if(document.hidden){ clearTimeout(t); document.removeEventListener('visibilitychange', h); }
+        });
+      }
+      window.location.href = c.scheme + '://';
+    } else {
+      window.location.href = c.store;
+    }
+    return;
+  }
+  var store = 'https://play.google.com/store/apps/details?id=' + a.pkg;
+  var url = 'intent://#Intent;package=' + a.pkg + ';S.browser_fallback_url=' + encodeURIComponent(store) + ';end';
   try { window.location.href = url; }
   catch(e){ window.open(store,'_blank'); }
 }
@@ -683,7 +730,7 @@ document.getElementById('saveBtn').onclick = function(){
   toast('Ride saved · ' + rides.length + ' total');
 };
 document.getElementById('expBtn').onclick = function(){
-  var blob = new Blob([JSON.stringify({ rides:rides, favs:favs, pkgs:pkgs }, null, 2)], { type:'application/json' });
+  var blob = new Blob([JSON.stringify({ rides:rides, favs:favs, pkgs:pkgs, ios:ios }, null, 2)], { type:'application/json' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'kerbside-' + new Date().toISOString().slice(0,10) + '.json';
@@ -700,6 +747,7 @@ document.getElementById('impBtn').onclick = function(){
         if(d.favs)  { favs  = d.favs;  put('ks.favs', favs); }
         if(d.pkgs)  { pkgs  = d.pkgs;  put('ks.pkgs', pkgs);
                       APPS.forEach(function(a){ if(pkgs[a.id]!==undefined) a.pkg = pkgs[a.id]; }); }
+        if(d.ios)   { ios   = d.ios;   put('ks.ios', ios); }
         renderChips(); renderStack(); renderHist(); renderSetup();
         toast('Imported ' + rides.length + ' rides');
       } catch(e){ toast('That file could not be read'); }

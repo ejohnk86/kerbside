@@ -1,10 +1,17 @@
 # Kerbside
 
-A personal Android home-screen web app for Singapore ride-hailing. It does two things:
+A personal home-screen web app for Singapore ride-hailing. It does two things:
 launches the five ride apps (Grab, Gojek, TADA, Ryde, CDG Zig) with the destination
 copied to the clipboard, and logs the fares the user actually saw so it can learn which
-app to open first. Built for one user (John), hosted on GitHub Pages, opened in Chrome
-on Android and added to the home screen.
+app to open first. Built for one user (John), hosted on GitHub Pages, added to the
+home screen from the mobile browser.
+
+The launcher is platform-aware. On Android it fires `intent://` URLs keyed by package
+name; on iOS it opens a custom URL scheme with an App Store link as timed fallback
+(`visibilitychange` cancels the fallback when the app actually opened). Detection is
+the `IOS` flag at the top of the script. John's Android phone is in repair
+(may not return); the current device is an iPhone 11 Pro Max on iOS 26, so the iOS
+path is the one that matters right now.
 
 ## Hard constraints — do not violate
 
@@ -18,8 +25,8 @@ on Android and added to the home screen.
   no impersonating their clients. The launcher opens apps via Android `intent://` URLs
   with a Play Store fallback; that's the whole integration surface.
 - **Works offline once cached; data never leaves the phone.** localStorage only
-  (`ks.rides`, `ks.favs`, `ks.pkgs`), with an in-memory fallback when storage is
-  blocked. Export/import is manual JSON.
+  (`ks.rides`, `ks.favs`, `ks.pkgs`, `ks.ios`), with an in-memory fallback when
+  storage is blocked. Export/import is manual JSON.
 - **Ranking honesty.** Only rides with ≥2 logged fares count as comparisons. Fallback
   tiers: this route + time band → this route any time → all routes same day-type +
   band → all rides; a tier is used only when it has ≥3 comparisons, and the UI always
@@ -45,11 +52,14 @@ Colours (CSS custom properties in `:root`):
 Type: `--mono` = "Martian Mono" (labels, numbers, all-caps microcopy),
 `--sans` = "Instrument Sans" (body). Max content width 520px, mobile-first.
 
-## Current state / open questions (needs a real Android device)
+## Current state / open questions (needs a real device)
 
-- Package names: only Grab (`com.grabtaxi.passenger`) is confirmed. Gojek is prefilled
-  as `com.gojek.app` but unverified. TADA, Ryde, CDG Zig are blank — the Setup tab
-  extracts the package from a pasted Play Store share link.
+- iOS (current device): prefilled schemes `grab://` and `gojek://` are unverified
+  guesses; TADA, Ryde, CDG Zig are blank. Each needs one tap of OPEN on the iPhone to
+  confirm; the Setup tab stores a scheme and an optional App Store share link per app.
+- Android (if the phone returns): only Grab (`com.grabtaxi.passenger`) is confirmed.
+  Gojek is prefilled as `com.gojek.app` but unverified. TADA, Ryde, CDG Zig are blank —
+  the Setup tab extracts the package from a pasted Play Store share link.
 - Untested: whether `intent://` URLs fire correctly from an installed PWA, and whether
   any of the five apps accept route parameters in a deep link. If a working deep link
   scheme is found, wire it in as a per-app template.
